@@ -35,4 +35,3 @@ sl = Sine(freq=fr, mul=0.5).out()
 for input in next():
 	if 'rawEeg' in input:
 		fr.value = input['rawEeg'] + 400
-		print fr.value

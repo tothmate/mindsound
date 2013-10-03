@@ -1,7 +1,6 @@
 from socket import socket, AF_INET, SOCK_STREAM
 from json import dumps, loads
-from pyo import Server, VarPort, SineLoop
-from math import log
+from pyo import Server, VarPort, Sine
 from time import sleep
 from random import randint
 
@@ -23,11 +22,17 @@ def next():
 			pass
 
 
-_ = Server().boot().start()
+def fake_next():
+	while True:
+		yield {'rawEeg': randint(-2047, 2048)}
+		sleep(0.1)
 
-fr = VarPort(value=0, time=0.2)
-sl = SineLoop(freq=fr, mul=0.5).out()
+
+_ = Server().boot().start()
+fr = VarPort(value=500, time=0.2)
+sl = Sine(freq=fr, mul=0.5).out()
 
 for input in next():
 	if 'rawEeg' in input:
 		fr.value = input['rawEeg'] + 400
+		print fr.value

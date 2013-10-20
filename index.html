@@ -1,0 +1,40 @@
+<html>
+<body>
+<div id='raw'></div>
+<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>
+<script src='/socket.io/socket.io.js'></script>
+<script>
+	var data = [];
+	for (var i=0; i<512;i++) data.push(0);
+
+	var width = 512;
+	var height = 200;
+
+	var x = d3.scale.linear().domain([0, data.length - 1]).range([0, width]);
+	var y = d3.scale.linear().domain([-2048, 2047]).range([height, 0]);
+
+	var line = d3.svg.line().x(function(d, i) { return x(i); }).y(y);
+
+	var raw = d3.select('#raw')
+		.append('svg')
+		.attr('width', width)
+		.attr('height', height);
+
+	var path = raw.append('g')
+		.append('path')
+		.datum(data)
+		.attr('class', 'line')
+		.attr('d', line)
+		.attr('stroke', 'blue')
+		.attr('fill', 'none');
+
+	var socket = io.connect('http://localhost');
+	socket.on('eeg', function (eegVal) {
+		data.push(eegVal);
+		path.attr('d', line).attr('transform', 'translate(' + x(-1) + ',0)');
+		data.shift();
+	});
+
+</script>
+</body>
+</html>

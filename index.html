@@ -1,18 +1,18 @@
 <html>
 <body>
 <div id='raw'></div>
+<button onClick='start()'>start</button>
+<div id='rect' style='position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; display: none'></div>
+<div id='recorded'></div>
 <script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>
 <script src='/socket.io/socket.io.js'></script>
 <script>
 	var data = [];
 	for (var i=0; i<512;i++) data.push(0);
 
-	var width = 512;
-	var height = 200;
-
+	var width = 512, height = 200;
 	var x = d3.scale.linear().domain([0, data.length - 1]).range([0, width]);
 	var y = d3.scale.linear().domain([-2048, 2047]).range([height, 0]);
-
 	var line = d3.svg.line().x(function(d, i) { return x(i); }).y(y);
 
 	var raw = d3.select('#raw')
@@ -28,13 +28,70 @@
 		.attr('stroke', 'blue')
 		.attr('fill', 'none');
 
+	var recording = false;
+	var recorded_values = [];
+	var record_limit = 1024;
+
 	var socket = io.connect('http://localhost');
 	socket.on('eeg', function (eegVal) {
 		data.push(eegVal);
 		path.attr('d', line).attr('transform', 'translate(' + x(-1) + ',0)');
 		data.shift();
+
+		if (recording) {
+			recorded_values.push(eegVal);
+			if (recorded_values.length == record_limit) stop_recording();
+		}
 	});
 
+	var start_recording = function() {
+		recorded_values = [];
+		recording = true;
+	}
+
+	var stop_recording = function() {
+		recording = false;
+
+		var width = 256, height = 100;
+		var x = d3.scale.linear().domain([0, recorded_values.length - 1]).range([0, width]);
+		var y = d3.scale.linear().domain([-128, 127]).range([height, 0]);
+		var line = d3.svg.line().x(function(d, i) { return x(i); }).y(y);
+		var recorded = d3.select('#recorded')
+			.append('svg')
+			.attr('width', width)
+			.attr('height', height)
+			.style('margin', '20px')
+			.append('g')
+			.append('path')
+			.datum(recorded_values)
+			.attr('d', line)
+			.attr('stroke', 'black')
+			.attr('fill', 'none');
+	}
+
+	var get_random_color = function() { return '#'+Math.floor(Math.random()*16777215).toString(16); }
+	var rect_element = document.getElementById('rect');
+	var test_started, rect_colors, current_rect_color_index;
+
+	var changeRect = function() {
+		next_color = rect_colors[current_rect_color_index % rect_colors.length];
+		current_rect_color_index += 1;
+		if (test_started && Math.random() < 0.05) {
+			start_recording();
+			next_color = get_random_color();
+		}
+		rect_element.style.backgroundColor = next_color;
+	}
+
+	var start = function() {
+		rect_colors = [];
+		for (var i=0; i<2; i++) rect_colors.push(get_random_color());
+		current_rect_color_index = 0;
+		rect_element.style.display = 'block';
+		setInterval(changeRect, 200);
+		setTimeout(function() { test_started = true; }, 30000);
+		setTimeout(function() { test_started = false; rect_element.style.display = 'none'; }, 60000);
+	}
 </script>
 </body>
 </html>

@@ -16,6 +16,9 @@ browser = null;
 io.set('log level', 1);
 io.sockets.on('connection', function (socket) { browser = socket });
 
+//setInterval(function() { if (browser) browser.emit('eeg', Math.floor((Math.random()*4095)-2048)); }, 50);
+
+
 thinkgear = net.connect(13854, '127.0.0.1', function() {
     thinkgear.write(JSON.stringify({enableRawOutput: true, format: 'Json'}));
 });

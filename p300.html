@@ -1,0 +1,119 @@
+<html>
+<body>
+<button onClick="toggle()">toggle</button>
+<script src='http://underscorejs.org/underscore-min.js'></script>
+<script src='/socket.io/socket.io.js'></script>
+<script>
+	var get_random_color = function() {
+		return 'hsl('+ Math.floor(Math.random()*256) +', 100%, 45%)'
+	}
+
+	var num_rects = 25*25;
+	var num_rows = 25;
+	var rects = [];
+	var eeg_sum = 0;
+	var eeg_len = 0;
+	var recording = false;
+	var last_rect_indices = [];
+	var result_sum = [];
+	var result_len = [];
+
+	var size = _.min([document.width, document.height]) * 0.9 / num_rows;
+	var num_cols = Math.floor(num_rects / num_rows);
+
+	for (var i=0; i<num_rects; i++) {
+		if (i % num_rows == 0) {
+			var br = document.createElement('br');
+			br.style.clear = 'both';
+			document.body.appendChild(br);
+		}
+
+		var rect = document.createElement('div');
+		rect.style.width = size +'px';
+		rect.style.height = size +'px';
+		rect.style.float = 'left';
+		rect.style.backgroundColor = get_random_color();;
+		rects.push(rect);
+		document.body.appendChild(rect);
+
+		result_sum[i] = 0;
+		result_len[i] = 0;
+	}
+
+	var socket = io.connect('http://localhost');
+	socket.on('eeg', function (eeg_value) {
+		if (recording) {
+			eeg_sum += Math.abs(eeg_value);
+			eeg_len += 1;
+		}
+	});
+
+	var show_result = function() {
+		if (_.every(result_len, _.identity)) {
+			var avgs = _.map(
+				_.zip(result_sum, result_len),
+				function(v) { return v[0] / v[1]; }
+			);
+			var mx = _.max(avgs);
+			_.each(rects, function(rect, i, l) {
+				rect.style.opacity = avgs[i] / mx;
+			});
+		}
+	};
+
+	var flash = function() {
+		if (recording) {
+			recording = false;
+			if (eeg_len > 0) {
+				_.each(last_rect_indices, function(idx, i, l) {
+					result_sum[idx] += eeg_sum / eeg_len;
+					result_len[idx] += 1;
+				});
+			}
+			show_result();
+		}
+
+		eeg_sum = 0;
+		eeg_len = 0;
+		recording = true;
+
+		if (Math.random() >= 0.5) {
+			var idx = Math.floor(Math.random()*num_rows);
+			last_rect_indices = _.filter(_.range(num_rects), function(i) {
+				return Math.floor(i / num_rows) == idx;
+			});
+		} else {
+			var idx = Math.floor(Math.random()*num_cols);
+			last_rect_indices = _.filter(_.range(num_rects), function(i) {
+				return i % num_rows == idx;
+			});
+		}
+
+		_.each(last_rect_indices, function(idx, i, l) {
+			rects[idx].style.visibility = 'hidden';
+			setTimeout(function() {
+				rects[idx].style.visibility = 'visible';
+			}, 50);
+		});
+	};
+
+	var interval_id = null;
+	var toggle = function() {
+		if (interval_id == null) {
+			for (var i=0; i<num_rects; i++) {
+				result_sum[i] = 0;
+				result_len[i] = 0;
+			}
+			interval_id = setInterval(flash, 300);
+		} else {
+			recording = false;
+			clearInterval(interval_id);
+			_.each(rects, function(rect, i, l) {
+				console.log(i, rect.style.opacity);
+			});
+			interval_id = null;
+		}
+	};
+</script>
+</body>
+</html>

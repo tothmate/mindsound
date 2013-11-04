@@ -17,7 +17,7 @@ browser = null;
 io.set('log level', 1);
 io.sockets.on('connection', function (socket) { browser = socket });
 
-TEST = true;
+TEST = false;
 
 if (TEST) {
     setInterval(function() { if (browser) browser.emit('eeg', Math.floor((Math.random()*4095)-2048)); }, 50);
@@ -36,6 +36,9 @@ if (TEST) {
             var packet = JSON.parse(packets[i]);
             if (packet.hasOwnProperty('rawEeg') && browser) {
                 browser.emit('eeg', packet['rawEeg']);
+            }
+            if (packet.hasOwnProperty('blinkStrength') && browser) {
+                browser.emit('blink', packet['blinkStrength']);
             }
         }
     });

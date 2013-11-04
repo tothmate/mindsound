@@ -8,15 +8,13 @@
 		return 'hsl('+ Math.floor(Math.random()*256) +', 100%, 45%)'
 	}
 
-	var num_rects = 25*25;
-	var num_rows = 25;
+	var num_rects = 9;
+	var num_rows = 3;
 	var rects = [];
-	var eeg_sum = 0;
-	var eeg_len = 0;
-	var recording = false;
 	var last_rect_indices = [];
 	var result_sum = [];
 	var result_len = [];
+	var eeg_buffer = new Array(512);
 
 	var size = _.min([document.width, document.height]) * 0.9 / num_rows;
 	var num_cols = Math.floor(num_rects / num_rows);
@@ -32,7 +30,7 @@
 		rect.style.width = size +'px';
 		rect.style.height = size +'px';
 		rect.style.float = 'left';
-		rect.style.backgroundColor = get_random_color();;
+		rect.style.backgroundColor = get_random_color();
 		rects.push(rect);
 		document.body.appendChild(rect);
 
@@ -42,41 +40,14 @@
 
 	var socket = io.connect('http://localhost');
 	socket.on('eeg', function (eeg_value) {
-		if (recording) {
-			eeg_sum += Math.abs(eeg_value);
-			eeg_len += 1;
-		}
+		eeg_buffer.shift();
+		eeg_buffer.push(eeg_value);
+	});
+	socket.on('blink', function (blink_strength) {
+		if (blink_strength > 10) for (var i=0; i<eeg_buffer.length; i++) eeg_buffer[i] = 0;
 	});
 
-	var show_result = function() {
-		if (_.every(result_len, _.identity)) {
-			var avgs = _.map(
-				_.zip(result_sum, result_len),
-				function(v) { return v[0] / v[1]; }
-			);
-			var mx = _.max(avgs);
-			_.each(rects, function(rect, i, l) {
-				rect.style.opacity = avgs[i] / mx;
-			});
-		}
-	};
-
 	var flash = function() {
-		if (recording) {
-			recording = false;
-			if (eeg_len > 0) {
-				_.each(last_rect_indices, function(idx, i, l) {
-					result_sum[idx] += eeg_sum / eeg_len;
-					result_len[idx] += 1;
-				});
-			}
-			show_result();
-		}
-
-		eeg_sum = 0;
-		eeg_len = 0;
-		recording = true;
-
 		if (Math.random() >= 0.5) {
 			var idx = Math.floor(Math.random()*num_rows);
 			last_rect_indices = _.filter(_.range(num_rects), function(i) {
@@ -97,6 +68,34 @@
 		});
 	};
 
+	var update_alpha = function() {
+		if (_.every(result_len, _.identity)) {
+			var avgs = _.map(
+				_.zip(result_sum, result_len),
+				function(v) { return v[0] / v[1]; }
+			);
+			var mx = _.max(avgs);
+			_.each(rects, function(rect, i, l) {
+				rect.style.opacity = avgs[i] / mx;
+			});
+		}
+	};
+
+	var test_cycle = function() {
+		if (last_rect_indices.length > 0) {
+			var sum = _.reduce(eeg_buffer.slice(80,300), function(memo, num){ return memo + Math.abs(num); }, 0);
+
+			_.each(last_rect_indices, function(idx, i, l) {
+				result_sum[idx] += sum;
+				result_len[idx] += 1;
+			});
+
+			update_alpha();
+		}
+
+		flash();
+	};
+
 	var interval_id = null;
 	var toggle = function() {
 		if (interval_id == null) {
@@ -104,12 +103,12 @@
 				result_sum[i] = 0;
 				result_len[i] = 0;
 			}
-			interval_id = setInterval(flash, 300);
+			interval_id = setInterval(test_cycle, 500);
 		} else {
-			recording = false;
 			clearInterval(interval_id);
 			_.each(rects, function(rect, i, l) {
 				console.log(i, rect.style.opacity);
+				rect.style.opacity = 1;
 			});
 			interval_id = null;
 		}

@@ -33,7 +33,7 @@
 	var record_limit = 1024;
 
 	var socket = io.connect('http://localhost');
-	socket.on('eeg', function (eegVal) {
+	socket.on('eeg', function(eegVal) {
 		data.push(eegVal);
 		path.attr('d', line).attr('transform', 'translate(' + x(-1) + ',0)');
 		data.shift();

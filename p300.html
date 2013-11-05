@@ -1,6 +1,6 @@
 <html>
 <body>
-<button onClick="toggle()">toggle</button>
+<button onClick='toggle()'>toggle</button>
 <script src='http://underscorejs.org/underscore-min.js'></script>
 <script src='/socket.io/socket.io.js'></script>
 <script>
@@ -15,6 +15,8 @@
 	var result_sum = [];
 	var result_len = [];
 	var eeg_buffer = new Array(512);
+	var logs = [];
+	var interval_id = null;
 
 	var size = _.min([document.width, document.height]) * 0.9 / num_rows;
 	var num_cols = Math.floor(num_rects / num_rows);
@@ -27,8 +29,9 @@
 		}
 
 		var rect = document.createElement('div');
-		rect.style.width = size +'px';
-		rect.style.height = size +'px';
+		rect.style.width = size*0.8 +'px';
+		rect.style.height = size*0.8 +'px';
+		rect.style.margin = size*0.1 + 'px';
 		rect.style.float = 'left';
 		rect.style.backgroundColor = get_random_color();
 		rects.push(rect);
@@ -39,12 +42,12 @@
 	}
 
 	var socket = io.connect('http://localhost');
-	socket.on('eeg', function (eeg_value) {
+	socket.on('eeg', function(eeg_value) {
 		eeg_buffer.shift();
 		eeg_buffer.push(eeg_value);
 	});
-	socket.on('blink', function (blink_strength) {
-		if (blink_strength > 10) for (var i=0; i<eeg_buffer.length; i++) eeg_buffer[i] = 0;
+	socket.on('blink', function(blink_strength) {
+		for (var i=0; i<eeg_buffer.length; i++) eeg_buffer[i] = 0;
 	});
 
 	var flash = function() {
@@ -69,21 +72,22 @@
 	};
 
 	var update_alpha = function() {
-		if (_.every(result_len, _.identity)) {
+		if (_.every(result_len, function(v) { return v>30; })) {
 			var avgs = _.map(
 				_.zip(result_sum, result_len),
 				function(v) { return v[0] / v[1]; }
 			);
 			var mx = _.max(avgs);
 			_.each(rects, function(rect, i, l) {
-				rect.style.opacity = avgs[i] / mx;
+				rect.style.opacity = Math.pow(avgs[i] / mx, 25);
 			});
 		}
 	};
 
 	var test_cycle = function() {
 		if (last_rect_indices.length > 0) {
-			var sum = _.reduce(eeg_buffer.slice(80,300), function(memo, num){ return memo + Math.abs(num); }, 0);
+			var sum = _.reduce(eeg_buffer.slice(80, 256), function(memo, num) { return memo + Math.abs(num); }, 0);
+			if (_.contains(last_rect_indices, 5)) window.logs.push(eeg_buffer.slice(80, 256));
 
 			_.each(last_rect_indices, function(idx, i, l) {
 				result_sum[idx] += sum;
@@ -96,13 +100,16 @@
 		flash();
 	};
 
-	var interval_id = null;
 	var toggle = function() {
 		if (interval_id == null) {
 			for (var i=0; i<num_rects; i++) {
 				result_sum[i] = 0;
 				result_len[i] = 0;
 			}
+			
+			logs = [];
+			_.each(document.getElementsByClassName('logs'), function(logs_div) { document.body.removeChild(logs_div); });
+			
 			interval_id = setInterval(test_cycle, 500);
 		} else {
 			clearInterval(interval_id);
@@ -111,7 +118,38 @@
 				rect.style.opacity = 1;
 			});
 			interval_id = null;
+
+			_.each(logs, show);
 		}
+	};
+
+	var show = function(logline) {
+		var scale = 0.5;
+
+		var logs_div = document.createElement('div');
+		logs_div.className = 'logs';
+		logs_div.style.clear = 'both';
+		logs_div.style.margin = '20px';
+
+		_.each(logline, function(value, i) {
+			var div = document.createElement('div');
+
+			if (value == 'blink') {
+				div.style.backgroundColor = 'green';
+				value = 2500;
+			} else {
+				div.style.backgroundColor = 'blue';
+			}
+
+			div.style.float = 'left';
+			div.style.width = '1px';
+			div.style.height = Math.abs(value) * scale;
+			div.style.marginTop = 250;
+			if (value > 0) div.style.marginTop = 250 - value * scale;
+			div.id = 'value-'+ i;
+			logs_div.appendChild(div);
+		});
+		document.body.appendChild(logs_div);
 	};
 </script>
 </body>

@@ -20,7 +20,7 @@ io.sockets.on('connection', function (socket) { browser = socket });
 TEST = false;
 
 if (TEST) {
-    setInterval(function() { if (browser) browser.emit('eeg', Math.floor((Math.random()*4095)-2048)); }, 50);
+    setInterval(function() { if (browser) browser.emit('eeg', Math.floor((Math.random()*1024)-512)); }, 50);
 } else {
     thinkgear = net.connect(13854, '127.0.0.1', function() {
         thinkgear.write(JSON.stringify({enableRawOutput: true, format: 'Json'}));

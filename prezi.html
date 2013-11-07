@@ -1,0 +1,54 @@
+<html>
+<body>
+<div id='prezi-player'></div>
+<div id='counter'></div>
+<script src='/prezi_player.js'></script>
+<script src='/socket.io/socket.io.js'></script>
+<script>
+	var player = new PreziPlayer('prezi-player', {
+		'preziId' : 'xcqixpg3zufi', 
+		'width': document.width,
+		'height': document.height
+	});
+
+	var blink_counter = 0;
+	var active = false;
+
+	var socket = io.connect('http://localhost');
+	socket.on('blink', function(blink_strength) {
+		if (!active) return;
+		blink_counter += 1;
+
+		var threshold = 2 //player.getCurrentStep() == 1 ? 1 : 3; 
+
+		if (blink_counter >= threshold && player.getStatus() == PreziPlayer.STATUS_CONTENT_READY) {
+			player.flyToNextStep();
+			blink_counter = 0;
+		}
+
+		if (blink_counter == 1) {
+			setTimeout(function() {
+				blink_counter = 0;
+			}, 2000);
+		}
+	});
+
+	//setInterval(function() { document.getElementById('counter').innerHTML = blink_counter; }, 200);
+
+	document.body.addEventListener('keydown', function (e) {
+		if (e.keyCode == 33) {
+			player.flyToPreviousStep();
+		} else if (e.keyCode == 34) {
+			player.flyToNextStep();
+		}
+		else if (e.keyCode == 27) {
+			active = true;
+			document.body.style.backgroundColor = 'black';
+		} else if (e.keyCode == 116) {
+			active = false;
+			document.body.style.backgroundColor = 'white';
+		}
+	});
+</script>
+</body>
+</html>

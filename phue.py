@@ -171,6 +171,8 @@ class Light(object):
 
     @brightness.setter
     def brightness(self, value):
+        if self._brightness == value:
+            return
         self._brightness = value
         result = self._set('bri', self._brightness)
 

@@ -1,5 +1,6 @@
-needs:
+gadget playground
 
- - http://store.neurosky.com/products/mindwave-mobile
- - http://developer.neurosky.com/docs/doku.php?id=thinkgear_connector_tgc
- - http://code.google.com/p/pyo/
+- mindsound: mindwave to sound
+- mindlight: mindwave to philips hue
+- prezi, blink: control prezi with blinks ("mindwave")
+- pulse: pulsesensor to philips hue
